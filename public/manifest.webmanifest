@@ -1,0 +1,9 @@
+{
+  "name": "MOTAED - Gestion & Identite",
+  "short_name": "MOTAED",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f8f8",
+  "theme_color": "#196c5a",
+  "description": "Gestion et verification des identites professionnelles"
+}
