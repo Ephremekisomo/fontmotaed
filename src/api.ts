@@ -1,7 +1,9 @@
 export type LoginResponse = { user: { id: string; role: string } }
 
+const API_BASE = (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL?.replace(/\/$/, '') ?? ''
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(path, { ...options, credentials: 'include', headers: { 'Content-Type': 'application/json', ...options?.headers } })
+  const response = await fetch(`${API_BASE}${path}`, { ...options, credentials: 'include', headers: { 'Content-Type': 'application/json', ...options?.headers } })
   const body = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(body.error ?? 'Erreur réseau')
   return body as T
