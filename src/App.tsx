@@ -1128,14 +1128,10 @@ function QrScanner({ onScan, onClose }: { onScan: (code: string) => void; onClos
   );
 }
 function Verify({ initialCode = "" }: { initialCode?: string }) {
-  const [code, setCode] = useState(initialCode);
   const [result, setResult] = useState<Awaited<ReturnType<typeof apiVerifyRider>> | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [cameraActive, setCameraActive] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const verify = async (value = code) => {
+  const verify = async (value = initialCode) => {
     const normalized = value.trim();
     if (!normalized) return;
     setLoading(true);
@@ -1144,25 +1140,10 @@ function Verify({ initialCode = "" }: { initialCode?: string }) {
   };
   useEffect(() => {
     if (initialCode) {
-      void apiVerifyRider(initialCode).then(setResult).catch((verifyError) => setError(verifyError instanceof Error ? verifyError.message : "Identité introuvable"));
+      void verify(initialCode);
     }
-    return () => streamRef.current?.getTracks().forEach((track) => track.stop());
   }, [initialCode]);
-  const startCamera = async () => {
-    if (!("BarcodeDetector" in window) || !navigator.mediaDevices) { setError("La caméra n’est pas prise en charge. Saisissez le code manuellement."); return; }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
-      setCameraActive(true);
-      const Detector = (window as Window & { BarcodeDetector: new (options?: { formats: string[] }) => { detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue: string }>> } }).BarcodeDetector;
-      const detector = new Detector({ formats: ["qr_code"] });
-      const video = videoRef.current;
-      if (!video) return;
-      const scan = async () => { if (!streamRef.current) return; const found = await detector.detect(video); if (found[0]?.rawValue) { const foundCode = found[0].rawValue.split("/verify/")[1] ?? found[0].rawValue; setCode(foundCode); void verify(foundCode); stream.getTracks().forEach((track) => track.stop()); setCameraActive(false); } else requestAnimationFrame(() => void scan()); };
-      video.onloadedmetadata = () => void scan();
-    } catch { setError("Accès à la caméra refusé ou indisponible."); }
-  };
+  const driverTypeLabel = result?.driver_type === 'chauffeur_taxi' ? 'Taxi' : result?.driver_type === 'chauffeur_taxi_bus' ? 'Taxi-bus' : result?.driver_type === 'motard' ? 'Motard' : result?.driver_type ?? '—';
   return (
     <div className="verify-page">
       <div className="verify-card">
@@ -1170,31 +1151,60 @@ function Verify({ initialCode = "" }: { initialCode?: string }) {
           <ShieldCheck size={21} />
         </div>
         <p className="eyebrow">MOTAED · VÉRIFICATION PUBLIQUE</p>
-        <h1>Vérifier une identité</h1>
-        <p className="muted">
-          Scannez le QR code présent sur la carte professionnelle du conducteur.
-        </p>
-        <div className={cameraActive ? "scanner camera-active" : "scanner"}>
-          <div className="scan-corners" />
-          {cameraActive ? <video ref={videoRef} autoPlay muted playsInline /> : <><QrCode size={72} strokeWidth={1.3} /><span>Caméra en attente</span></>}
-        </div>
-        <button className="primary wide" onClick={() => void startCamera()} disabled={cameraActive}>
-          <QrCode size={17} /> {cameraActive ? "Caméra active" : "Activer la caméra"}
-        </button>
-        <div className="verify-divider">
-          <span>ou</span>
-        </div>
-        <div className="search verify-search">
-          <Search size={17} />
-          <input value={code} onChange={(event) => setCode(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void verify(); }} placeholder="Saisir un identifiant manuellement" />
-        </div>
-        <button className="secondary wide" onClick={() => void verify()} disabled={loading}>{loading ? "Vérification..." : "Vérifier le code"}</button>
+        <h1>Identité vérifiée</h1>
+        {loading && <p className="muted">Vérification en cours...</p>}
         {error && <p className="login-error">{error}</p>}
-        {result && <div className="verify-result"><strong>{result.first_name} {result.last_name}</strong><span>{result.identification_number} · {result.plate_number ?? "Plaque non renseignée"}</span><span>{result.activity_zone ?? "Zone non renseignée"} · {result.status}</span></div>}
-        <small className="public-note">
-          <ShieldCheck size={14} /> Les données affichées sont strictement
-          professionnelles.
-        </small>
+        {result && (
+          <div className="verify-public-card">
+            <div className="verify-photo">
+              {result.photo_url ? (
+                <img src={result.photo_url} alt={`${result.first_name} ${result.last_name}`} />
+              ) : (
+                <div className="avatar-placeholder">
+                  {result.first_name[0]}{result.last_name[0]}
+                </div>
+              )}
+            </div>
+            <div className="verify-info">
+              <h2>{result.first_name} {result.last_name}</h2>
+              <div className="verify-grid">
+                <div className="verify-item">
+                  <span className="verify-label">Type</span>
+                  <span className="verify-value">{driverTypeLabel}</span>
+                </div>
+                <div className="verify-item">
+                  <span className="verify-label">Identifiant</span>
+                  <span className="verify-value mono">{result.identification_number}</span>
+                </div>
+                <div className="verify-item">
+                  <span className="verify-label">Plaque</span>
+                  <span className="verify-value mono">{result.plate_number ?? "Non renseignée"}</span>
+                </div>
+                <div className="verify-item">
+                  <span className="verify-label">Marque / Modèle</span>
+                  <span className="verify-value">{result.vehicle_brand ?? "—"} {result.vehicle_model ?? ""}</span>
+                </div>
+                <div className="verify-item">
+                  <span className="verify-label">Zone d’activité</span>
+                  <span className="verify-value">{result.activity_zone ?? "Non renseignée"}</span>
+                </div>
+                <div className="verify-item">
+                  <span className="verify-label">Statut</span>
+                  <span className={`verify-status ${result.status}`}>{result.status}</span>
+                </div>
+              </div>
+              <small className="public-note">
+                <ShieldCheck size={14} /> Données professionnelles vérifiées le {new Date(result.updated_at).toLocaleDateString('fr-FR')}
+              </small>
+            </div>
+          </div>
+        )}
+        {!result && !loading && !error && (
+          <div className="verify-empty">
+            <QrCode size={48} strokeWidth={1.2} />
+            <p>Scannez un QR code MOTAED pour vérifier une identité.</p>
+          </div>
+        )}
       </div>
     </div>
   );
