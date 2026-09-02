@@ -136,7 +136,7 @@ function App() {
   const publicCode = window.location.pathname.match(/^\/verify\/([^/]+)\/?$/)?.[1];
   useEffect(() => {
     if (!isAuthenticated) return;
-    apiListRiders().then((items) => setRiders(items.map((item) => ({ id: Number(item.id.slice(-8)) || Date.now(), name: `${item.first_name} ${item.last_name}`, initials: `${item.first_name[0]}${item.last_name[0]}`, type: item.driver_type === "chauffeur_taxi" ? "Taxi" : item.driver_type === "chauffeur_taxi_bus" ? "Taxi-bus" : "Motard", idNumber: item.identification_number, plate: item.plate_number ?? "À attribuer", zone: item.activity_zone ?? "Non renseignée", status: item.status === "suspendu" ? "Suspendu" : item.status === "expire" ? "Expiré" : item.status === "desactive" ? "Désactivé" : "Actif", joined: new Date(item.created_at).toLocaleDateString("fr-FR"), color: "#9fb8ad", photoUrl: item.photo_url })))).catch(() => undefined);
+    apiListRiders().then((items) => setRiders(items.map((item, index) => ({ id: Number(item.id.replace(/[^0-9]/g, '').slice(-9)) || Date.now() - index, name: `${item.first_name} ${item.last_name}`, initials: `${item.first_name[0]}${item.last_name[0]}`, type: item.driver_type === "chauffeur_taxi" ? "Taxi" : item.driver_type === "chauffeur_taxi_bus" ? "Taxi-bus" : "Motard", idNumber: item.identification_number, plate: item.plate_number ?? "À attribuer", zone: item.activity_zone ?? "Non renseignée", status: item.status === "suspendu" ? "Suspendu" : item.status === "expire" ? "Expiré" : item.status === "desactive" ? "Désactivé" : "Actif", joined: new Date(item.created_at).toLocaleDateString("fr-FR"), color: "#9fb8ad", photoUrl: item.photo_url })))).catch(() => undefined);
   }, [isAuthenticated]);
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -398,7 +398,7 @@ function RiderMenu({
         <div className="row-menu-dropdown">
           <button onClick={() => { setOpenMenuId(null); onStatusChange(riderId, 'actif'); }}><Check size={14} /> Marquer actif</button>
           <button onClick={() => { setOpenMenuId(null); onStatusChange(riderId, 'suspendu'); }}><X size={14} /> Suspendre</button>
-          <button onClick={() => { setOpenMenuId(null); onStatusChange(riderId, 'expire'); }}><ShieldCheck size={14} /> Marquer expiré</button>
+          <button onClick={() => { setOpenMenuId(null); onStatusChange(riderId, 'desactive'); }}><X size={14} /> Désactiver</button>
           <button className="danger" onClick={() => { if (window.confirm(`Supprimer le profil de ${riderName} ?`)) onDelete(riderId); }}><Trash2 size={14} /> Supprimer</button>
         </div>
       )}
