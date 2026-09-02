@@ -30,7 +30,7 @@ import "./App.css";
 import { createRider as apiCreateRider, deleteRider as apiDeleteRider, createUser as apiCreateUser, getChart as apiGetChart, getStats as apiGetStats, listRiders as apiListRiders, listUsers as apiListUsers, login as apiLogin, logout as apiLogout, patchRiderStatus as apiPatchRiderStatus, uploadRiderPhoto as apiUploadRiderPhoto, verifyRider as apiVerifyRider, type ApiUser } from "./api";
 
 type Rider = {
-  id: number;
+  id: string;
   name: string;
   initials: string;
   type: string;
@@ -43,54 +43,10 @@ type Rider = {
   photoUrl?: string | null;
 };
 const demoRiders: Rider[] = [
-  {
-    id: 1,
-    name: "Blaise Kanku",
-    initials: "BK",
-    type: "Motard",
-    idNumber: "MOT-2024-0847",
-    plate: "KN-5421-AB",
-    zone: "Ngaliema",
-    status: "Actif",
-    joined: "Aujourd’hui, 09:42",
-    color: "#dfb28d",
-  },
-  {
-    id: 2,
-    name: "Jean-Pierre Mbuyi",
-    initials: "JM",
-    type: "Taxi",
-    idNumber: "TAX-2024-0846",
-    plate: "CD-8842-KL",
-    zone: "Gombe",
-    status: "Actif",
-    joined: "Hier, 16:18",
-    color: "#aebfd1",
-  },
-  {
-    id: 3,
-    name: "Grace Lukusa",
-    initials: "GL",
-    type: "Motard",
-    idNumber: "MOT-2024-0845",
-    plate: "KN-2201-CB",
-    zone: "Limete",
-    status: "Suspendu",
-    joined: "12 juin 2024",
-    color: "#c99887",
-  },
-  {
-    id: 4,
-    name: "Patrick Ilunga",
-    initials: "PI",
-    type: "Taxi-bus",
-    idNumber: "BUS-2024-0844",
-    plate: "CD-1130-AA",
-    zone: "Kintambo",
-    status: "Expiré",
-    joined: "11 juin 2024",
-    color: "#93a49f",
-  },
+  { id: "demo-1", name: "Blaise Kanku", initials: "BK", type: "Motard", idNumber: "MOT-2024-0847", plate: "KN-5421-AB", zone: "Ngaliema", status: "Actif", joined: "Aujourd’hui, 09:42", color: "#dfb28d" },
+  { id: "demo-2", name: "Jean-Pierre Mbuyi", initials: "JM", type: "Taxi", idNumber: "TAX-2024-0846", plate: "CD-8842-KL", zone: "Gombe", status: "Actif", joined: "Hier, 16:18", color: "#aebfd1" },
+  { id: "demo-3", name: "Grace Lukusa", initials: "GL", type: "Motard", idNumber: "MOT-2024-0845", plate: "KN-2201-CB", zone: "Limete", status: "Suspendu", joined: "12 juin 2024", color: "#c99887" },
+  { id: "demo-4", name: "Patrick Ilunga", initials: "PI", type: "Taxi-bus", idNumber: "BUS-2024-0844", plate: "CD-1130-AA", zone: "Kintambo", status: "Expiré", joined: "11 juin 2024", color: "#93a49f" },
 ];
 const initialForm = {
   firstName: "",
@@ -113,7 +69,7 @@ function App() {
   const [newRider, setNewRider] = useState(initialForm);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [createdRider, setCreatedRider] = useState<{ name: string; idNumber: string; plate: string; status: string; qrUrl: string; qrImage: string } | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [stats, setStats] = useState<{ riders: number; activeRiders: number; qrCodes: number; verifications: number } | null>(null);
   const [chartData, setChartData] = useState<{ day: string; count: number }[]>([]);
@@ -136,7 +92,7 @@ function App() {
   const publicCode = window.location.pathname.match(/^\/verify\/([^/]+)\/?$/)?.[1];
   useEffect(() => {
     if (!isAuthenticated) return;
-    apiListRiders().then((items) => setRiders(items.map((item, index) => ({ id: Number(item.id.replace(/[^0-9]/g, '').slice(-9)) || Date.now() - index, name: `${item.first_name} ${item.last_name}`, initials: `${item.first_name[0]}${item.last_name[0]}`, type: item.driver_type === "chauffeur_taxi" ? "Taxi" : item.driver_type === "chauffeur_taxi_bus" ? "Taxi-bus" : "Motard", idNumber: item.identification_number, plate: item.plate_number ?? "À attribuer", zone: item.activity_zone ?? "Non renseignée", status: item.status === "suspendu" ? "Suspendu" : item.status === "expire" ? "Expiré" : item.status === "desactive" ? "Désactivé" : "Actif", joined: new Date(item.created_at).toLocaleDateString("fr-FR"), color: "#9fb8ad", photoUrl: item.photo_url })))).catch(() => undefined);
+    apiListRiders().then((items) => setRiders(items.map((item) => ({ id: item.id, name: `${item.first_name} ${item.last_name}`, initials: `${item.first_name[0]}${item.last_name[0]}`, type: item.driver_type === "chauffeur_taxi" ? "Taxi" : item.driver_type === "chauffeur_taxi_bus" ? "Taxi-bus" : "Motard", idNumber: item.identification_number, plate: item.plate_number ?? "À attribuer", zone: item.activity_zone ?? "Non renseignée", status: item.status === "suspendu" ? "Suspendu" : item.status === "expire" ? "Expiré" : item.status === "desactive" ? "Désactivé" : "Actif", joined: new Date(item.created_at).toLocaleDateString("fr-FR"), color: "#9fb8ad", photoUrl: item.photo_url })))).catch(() => undefined);
   }, [isAuthenticated]);
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -173,7 +129,7 @@ function App() {
     setNewRider(initialForm);
     setPhotoPreview(null);
     setPage("riders");
-    setRiders([{ id: Date.now(), name: `${saved.first_name} ${saved.last_name}`, initials: `${saved.first_name[0]}${saved.last_name[0]}`, type: newRider.type, idNumber: saved.identification_number, plate: saved.plate_number ?? 'À attribuer', zone: saved.activity_zone ?? 'Non renseignée', status: 'Actif', joined: 'À l’instant', color: '#9fb8ad', photoUrl: photoPreview ?? undefined }, ...riders]);
+    setRiders([{ id: saved.id, name: `${saved.first_name} ${saved.last_name}`, initials: `${saved.first_name[0]}${saved.last_name[0]}`, type: newRider.type, idNumber: saved.identification_number, plate: saved.plate_number ?? 'À attribuer', zone: saved.activity_zone ?? 'Non renseignée', status: 'Actif', joined: 'À l’instant', color: '#9fb8ad', photoUrl: photoPreview ?? undefined }, ...riders]);
   };
   if (!isAuthenticated)
     return (
@@ -324,7 +280,7 @@ function App() {
             />
           )}
           {page === "riders" && (
-            <>{createdRider && <CreationSuccess rider={createdRider} onClose={() => setCreatedRider(null)} />}{scannedRider && !page.includes('verify') && <div className="verify-result" style={{ marginBottom: 18 }}><strong>{scannedRider.first_name} {scannedRider.last_name}</strong><span>{scannedRider.identification_number} · {scannedRider.plate_number ?? "Plaque non renseignée"}</span><span>{scannedRider.activity_zone ?? "Zone non renseignée"} · {scannedRider.status}</span></div>}{scanError && <p className="login-error" style={{ marginBottom: 18 }}>{scanError}</p>}<Riders riders={filteredRiders} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} onAdd={() => setPage("add")} onOpenQrScanner={() => setQrScannerOpen(true)} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} onStatusChange={async (id, status) => { await apiPatchRiderStatus(String(id), status); setRiders(riders.map((r) => (r.id === id ? { ...r, status: status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "expire" ? "Expiré" : "Désactivé" } : r))); setOpenMenuId(null); }} onDelete={async (id) => { await apiDeleteRider(String(id)); setRiders(riders.filter((r) => r.id !== id)); setOpenMenuId(null); }} /></>
+            <>{createdRider && <CreationSuccess rider={createdRider} onClose={() => setCreatedRider(null)} />}{scannedRider && !page.includes('verify') && <div className="verify-result" style={{ marginBottom: 18 }}><strong>{scannedRider.first_name} {scannedRider.last_name}</strong><span>{scannedRider.identification_number} · {scannedRider.plate_number ?? "Plaque non renseignée"}</span><span>{scannedRider.activity_zone ?? "Zone non renseignée"} · {scannedRider.status}</span></div>}{scanError && <p className="login-error" style={{ marginBottom: 18 }}>{scanError}</p>}<Riders riders={filteredRiders} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} onAdd={() => setPage("add")} onOpenQrScanner={() => setQrScannerOpen(true)} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId}             onStatusChange={async (id, status) => { await apiPatchRiderStatus(id, status); setRiders(riders.map((r) => (r.id === id ? { ...r, status: status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "expire" ? "Expiré" : "Désactivé" } : r))); setOpenMenuId(null); }} onDelete={async (id) => { await apiDeleteRider(id); setRiders(riders.filter((r) => r.id !== id)); setOpenMenuId(null); }} /></>
           )}
           {page === "add" && (
             <AddRider
@@ -375,12 +331,12 @@ function RiderMenu({
   openMenuId,
   setOpenMenuId,
 }: {
-  riderId: number;
+  riderId: string;
   riderName: string;
-  onStatusChange: (id: number, status: string) => void;
-  onDelete: (id: number) => void;
-  openMenuId: number | null;
-  setOpenMenuId: (v: number | null) => void;
+  onStatusChange: (id: string, status: string) => void;
+  onDelete: (id: string) => void;
+  openMenuId: string | null;
+  setOpenMenuId: (v: string | null) => void;
 }) {
   const isOpen = openMenuId === riderId;
   return (
@@ -755,10 +711,10 @@ function Riders({
   setFilter: (v: string) => void;
   onAdd: () => void;
   onOpenQrScanner?: () => void;
-  openMenuId: number | null;
-  setOpenMenuId: (v: number | null) => void;
-  onStatusChange: (id: number, status: string) => void;
-  onDelete: (id: number) => void;
+  openMenuId: string | null;
+  setOpenMenuId: (v: string | null) => void;
+  onStatusChange: (id: string, status: string) => void;
+  onDelete: (id: string) => void;
 }) {
   return (
     <>
@@ -807,7 +763,7 @@ function Riders({
     </>
   );
 }
-function RiderTable({ riders, openMenuId, setOpenMenuId, onStatusChange, onDelete }: { riders: Rider[]; openMenuId?: number | null; setOpenMenuId?: (v: number | null) => void; onStatusChange?: (id: number, status: string) => void; onDelete?: (id: number) => void }) {
+function RiderTable({ riders, openMenuId, setOpenMenuId, onStatusChange, onDelete }: { riders: Rider[]; openMenuId?: string | null; setOpenMenuId?: (v: string | null) => void; onStatusChange?: (id: string, status: string) => void; onDelete?: (id: string) => void }) {
   return (
     <div className="table-wrap">
       <table>
