@@ -1,4 +1,6 @@
 export type LoginResponse = { user: { id: string; role: string } }
+export type AuthMe = { user: { id: string; role: string }; profile?: { full_name: string; email: string; role: string; status: string } }
+export function authMe() { return request<AuthMe>('/api/auth/me') }
 
 const API_BASE = (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL?.replace(/\/$/, '') ?? ''
 

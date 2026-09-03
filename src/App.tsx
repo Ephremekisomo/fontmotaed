@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 import "./App.css";
-import { createRider as apiCreateRider, deleteRider as apiDeleteRider, createUser as apiCreateUser, getChart as apiGetChart, getStats as apiGetStats, listRiders as apiListRiders, listUsers as apiListUsers, login as apiLogin, logout as apiLogout, patchRiderStatus as apiPatchRiderStatus, uploadRiderPhoto as apiUploadRiderPhoto, verifyRider as apiVerifyRider, type ApiUser } from "./api";
+import { authMe as apiAuthMe, createRider as apiCreateRider, deleteRider as apiDeleteRider, createUser as apiCreateUser, getChart as apiGetChart, getStats as apiGetStats, listRiders as apiListRiders, listUsers as apiListUsers, login as apiLogin, logout as apiLogout, patchRiderStatus as apiPatchRiderStatus, uploadRiderPhoto as apiUploadRiderPhoto, verifyRider as apiVerifyRider, type ApiUser } from "./api";
 
 type Rider = {
   id: string;
@@ -76,6 +76,7 @@ function App() {
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [scannedRider, setScannedRider] = useState<Awaited<ReturnType<typeof apiVerifyRider>> | null>(null);
   const [scanError, setScanError] = useState("");
+  const [currentUser, setCurrentUser] = useState<{ id: string; fullName: string; email: string; role: string } | null>(null);
   const filteredRiders = useMemo(
     () =>
       riders.filter(
@@ -93,6 +94,14 @@ function App() {
   useEffect(() => {
     if (!isAuthenticated) return;
     apiListRiders().then((items) => setRiders(items.map((item) => ({ id: item.id, name: `${item.first_name} ${item.last_name}`, initials: `${item.first_name[0]}${item.last_name[0]}`, type: item.driver_type === "chauffeur_taxi" ? "Taxi" : item.driver_type === "chauffeur_taxi_bus" ? "Taxi-bus" : "Motard", idNumber: item.identification_number, plate: item.plate_number ?? "À attribuer", zone: item.activity_zone ?? "Non renseignée", status: item.status === "suspendu" ? "Suspendu" : item.status === "expire" ? "Expiré" : item.status === "desactive" ? "Désactivé" : "Actif", joined: new Date(item.created_at).toLocaleDateString("fr-FR"), color: "#9fb8ad", photoUrl: item.photo_url })))).catch(() => undefined);
+  }, [isAuthenticated]);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    apiAuthMe().then((data) => {
+      if (data.profile) {
+        setCurrentUser({ id: data.profile.email, fullName: data.profile.full_name, email: data.profile.email, role: data.profile.role });
+      }
+    }).catch(() => undefined);
   }, [isAuthenticated]);
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -277,6 +286,7 @@ function App() {
               stats={stats}
               chartData={chartData}
               onOpenQrScanner={() => setQrScannerOpen(true)}
+              currentUser={currentUser}
             />
           )}
           {page === "riders" && (
@@ -484,6 +494,7 @@ function Dashboard({
   stats,
   chartData,
   onOpenQrScanner,
+  currentUser,
 }: {
   onAdd: () => void;
   onRiders: () => void;
@@ -491,6 +502,7 @@ function Dashboard({
   stats?: { riders: number; activeRiders: number; qrCodes: number; verifications: number } | null;
   chartData?: { day: string; count: number }[];
   onOpenQrScanner?: () => void;
+  currentUser?: { fullName: string; email: string; role: string } | null;
 }) {
   const maxCount = Math.max(1, ...(chartData ?? []).map((c) => c.count));
   const formatCount = (value: number) => {
@@ -503,7 +515,7 @@ function Dashboard({
         <div>
           <p className="eyebrow">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}</p>
           <h1>
-            Bonjour, Amadou <span>👋</span>
+            Bonjour{currentUser ? `, ${currentUser.fullName}` : ''} <span>👋</span>
           </h1>
           <p className="muted">
             Voici ce qui se passe dans votre organisation aujourd’hui.
