@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import React from "react";
 import QRCode from "qrcode";
 import {
   Activity,
@@ -27,7 +28,7 @@ import {
   X,
 } from "lucide-react";
 import "./App.css";
-import { authMe as apiAuthMe, createRider as apiCreateRider, deleteRider as apiDeleteRider, createUser as apiCreateUser, getChart as apiGetChart, getStats as apiGetStats, listRiders as apiListRiders, listUsers as apiListUsers, login as apiLogin, logout as apiLogout, patchRiderStatus as apiPatchRiderStatus, uploadRiderPhoto as apiUploadRiderPhoto, verifyRider as apiVerifyRider, type ApiUser } from "./api";
+import { authMe as apiAuthMe, createIdentification, createUser as apiCreateUser, getChart as apiGetChart, getStats as apiGetStats, listRiders as apiListRiders, listUsers as apiListUsers, login as apiLogin, logout as apiLogout, verifyIdentification as apiVerifyIdentification, type ApiUser, type CreateIdentificationInput, type CreateIdentificationResponse, type IdentificationSheetPayload } from "./api";
 
 type Rider = {
   id: string;
@@ -48,15 +49,6 @@ const demoRiders: Rider[] = [
   { id: "demo-3", name: "Grace Lukusa", initials: "GL", type: "Motard", idNumber: "MOT-2024-0845", plate: "KN-2201-CB", zone: "Limete", status: "Suspendu", joined: "12 juin 2024", color: "#c99887" },
   { id: "demo-4", name: "Patrick Ilunga", initials: "PI", type: "Taxi-bus", idNumber: "BUS-2024-0844", plate: "CD-1130-AA", zone: "Kintambo", status: "Expiré", joined: "11 juin 2024", color: "#93a49f" },
 ];
-const initialForm = {
-  firstName: "",
-  lastName: "",
-  type: "Motard",
-  phone: "",
-  plate: "",
-  zone: "",
-};
-
 function App() {
   const [page, setPage] = useState<
     "login" | "dashboard" | "riders" | "add" | "verify" | "settings" | "help"
@@ -66,15 +58,14 @@ function App() {
   const [filter, setFilter] = useState("Tous");
   const [mobileNav, setMobileNav] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [newRider, setNewRider] = useState(initialForm);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [createdRider, setCreatedRider] = useState<{ name: string; idNumber: string; plate: string; status: string; qrUrl: string; qrImage: string } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  void photoPreview;
   const [stats, setStats] = useState<{ riders: number; activeRiders: number; qrCodes: number; verifications: number } | null>(null);
   const [chartData, setChartData] = useState<{ day: string; count: number }[]>([]);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
-  const [scannedRider, setScannedRider] = useState<Awaited<ReturnType<typeof apiVerifyRider>> | null>(null);
+  const [scannedRider, setScannedRider] = useState<IdentificationSheetPayload | null>(null);
   const [scanError, setScanError] = useState("");
   const [currentUser, setCurrentUser] = useState<{ id: string; fullName: string; email: string; role: string } | null>(null);
   const filteredRiders = useMemo(
@@ -117,8 +108,8 @@ function App() {
     setQrScannerOpen(false);
     setScanError("");
     try {
-      const result = await apiVerifyRider(code);
-      setScannedRider(result);
+      const response = await apiVerifyIdentification(code);
+      if (response.success) setScannedRider(response.identification);
       setPage("riders");
     } catch (err) {
       setScannedRider(null);
@@ -126,20 +117,6 @@ function App() {
     }
   };
   if (publicCode) return <Verify initialCode={decodeURIComponent(publicCode)} />;
-  const addRider = async () => {
-    if (!newRider.firstName || !newRider.lastName) return;
-    const saved = await apiCreateRider(newRider);
-    if (photoPreview) {
-      await apiUploadRiderPhoto(saved.id, photoPreview).catch(() => undefined);
-    }
-    const qrUrl = saved.qr_url ?? `${window.location.origin}/verify/${saved.unique_code}`;
-    const qrImage = await QRCode.toDataURL(qrUrl, { width: 320, margin: 2, color: { dark: '#173c50', light: '#ffffff' } });
-    setCreatedRider({ name: `${saved.first_name} ${saved.last_name}`, idNumber: saved.identification_number, plate: saved.plate_number ?? 'À attribuer', status: saved.status, qrUrl, qrImage });
-    setNewRider(initialForm);
-    setPhotoPreview(null);
-    setPage("riders");
-    setRiders([{ id: saved.id, name: `${saved.first_name} ${saved.last_name}`, initials: `${saved.first_name[0]}${saved.last_name[0]}`, type: newRider.type, idNumber: saved.identification_number, plate: saved.plate_number ?? 'À attribuer', zone: saved.activity_zone ?? 'Non renseignée', status: 'Actif', joined: 'À l’instant', color: '#9fb8ad', photoUrl: photoPreview ?? undefined }, ...riders]);
-  };
   if (!isAuthenticated)
     return (
       <Login
@@ -290,16 +267,12 @@ function App() {
             />
           )}
           {page === "riders" && (
-            <>{createdRider && <CreationSuccess rider={createdRider} onClose={() => setCreatedRider(null)} />}{scannedRider && !page.includes('verify') && <div className="verify-result" style={{ marginBottom: 18 }}><strong>{scannedRider.first_name} {scannedRider.last_name}</strong><span>{scannedRider.identification_number} · {scannedRider.plate_number ?? "Plaque non renseignée"}</span><span>{scannedRider.activity_zone ?? "Zone non renseignée"} · {scannedRider.status}</span></div>}{scanError && <p className="login-error" style={{ marginBottom: 18 }}>{scanError}</p>}<Riders riders={filteredRiders} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} onAdd={() => setPage("add")} onOpenQrScanner={() => setQrScannerOpen(true)} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId}             onStatusChange={async (id, status) => { await apiPatchRiderStatus(id, status); setRiders(riders.map((r) => (r.id === id ? { ...r, status: status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "expire" ? "Expiré" : "Désactivé" } : r))); setOpenMenuId(null); }} onDelete={async (id) => { await apiDeleteRider(id); setRiders(riders.filter((r) => r.id !== id)); setOpenMenuId(null); }} /></>
+            <>{scannedRider && !page.includes('verify') && <div className="verify-result" style={{ marginBottom: 18 }}><strong>{scannedRider.driver.first_name} {scannedRider.driver.last_name}</strong><span className="mono">{scannedRider.identification_number}</span><span>{scannedRider.administrative.status}</span></div>}{scanError && <p className="login-error" style={{ marginBottom: 18 }}>{scanError}</p>}<Riders riders={filteredRiders} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} onAdd={() => setPage("add")} onOpenQrScanner={() => setQrScannerOpen(true)} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} onStatusChange={async (id, status) => { setRiders(riders.map((r) => (r.id === id ? { ...r, status: status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "expire" ? "Expiré" : "Désactivé" } : r))); setOpenMenuId(null); }} onDelete={async (id) => { setRiders(riders.filter((r) => r.id !== id)); setOpenMenuId(null); }} /></>
           )}
           {page === "add" && (
-            <AddRider
-              data={newRider}
-              setData={setNewRider}
-              onSave={addRider}
+            <NewIdentificationSheet
               onCancel={() => { setPage("riders"); setPhotoPreview(null); }}
-              photoPreview={photoPreview}
-              setPhotoPreview={setPhotoPreview}
+              onCreated={() => { setPage("riders"); setPhotoPreview(null); }}
             />
           )}
           {page === "verify" && <Verify />}
@@ -676,9 +649,6 @@ function Stat({
     </div>
   );
 }
-function CreationSuccess({ rider, onClose }: { rider: { name: string; idNumber: string; plate: string; status: string; qrUrl: string; qrImage: string }; onClose: () => void }) {
-  return <section className="creation-success panel"><div><span className="success-badge"><Check size={16} /></span><p className="eyebrow">PROFIL ENREGISTRÉ</p><h2>Identité créée avec succès</h2><p className="muted">Le profil est maintenant enregistré dans votre base de données.</p><div className="success-details"><strong>{rider.name}</strong><span>{rider.idNumber} · {rider.plate}</span><span className="status actif"><i />{rider.status}</span></div><div className="success-actions"><a className="primary" href={rider.qrImage} download={`${rider.idNumber}-qr.png`}><Download size={16} /> Télécharger le QR</a><button className="secondary" onClick={() => window.print()}>Imprimer</button><a className="secondary" href={rider.qrUrl} target="_blank" rel="noreferrer">Voir la vérification</a><button className="text-button" onClick={onClose}>Fermer</button></div></div><div className="qr-preview"><img src={rider.qrImage} alt={`QR code de ${rider.name}`} /><small>Scanner pour vérifier l’identité</small></div></section>
-}
 function QuickAction({
   icon,
   title,
@@ -844,187 +814,6 @@ function RiderTable({ riders, openMenuId, setOpenMenuId, onStatusChange, onDelet
     </div>
   );
 }
-function AddRider({
-  data,
-  setData,
-  onSave,
-  onCancel,
-  photoPreview,
-  setPhotoPreview,
-}: {
-  data: typeof initialForm;
-  setData: (v: typeof initialForm) => void;
-  onSave: () => void;
-  onCancel: () => void;
-  photoPreview: string | null;
-  setPhotoPreview: (v: string | null) => void;
-}) {
-  return (
-    <>
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">NOUVEAU PROFIL</p>
-          <h1>Ajouter un conducteur</h1>
-          <p className="muted">
-            Créez une identité professionnelle et générez son QR code.
-          </p>
-        </div>
-        <button className="secondary" onClick={onCancel}>
-          Annuler
-        </button>
-      </div>
-      <div className="form-layout">
-        <section className="panel form-panel">
-          <div className="form-section">
-            <h2>Informations personnelles</h2>
-            <p className="muted">
-              Les informations visibles sur la carte professionnelle.
-            </p>
-            <div className="photo-upload">
-              {photoPreview ? (
-                <div className="photo-preview">
-                  <img src={photoPreview} alt="Aperçu" />
-                  <button type="button" className="photo-remove" onClick={() => setPhotoPreview(null)}><X size={14} /></button>
-                </div>
-              ) : (
-                <>
-                  <div className="upload-icon">
-                    <UserRound size={24} />
-                  </div>
-                  <div>
-                    <strong>Photo du conducteur</strong>
-                    <small>JPG ou PNG, 5 MB maximum</small>
-                  </div>
-                </>
-              )}
-              <div>
-                <input
-                  id="photo-input"
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = () => setPhotoPreview(reader.result as string);
-                    reader.readAsDataURL(file);
-                  }}
-                />
-                <button type="button" className="secondary" onClick={() => document.getElementById('photo-input')?.click()}>
-                  {photoPreview ? 'Changer' : 'Choisir une photo'}
-                </button>
-              </div>
-            </div>
-            <div className="form-grid">
-              <Field
-                label="Prénom *"
-                value={data.firstName}
-                onChange={(v) => setData({ ...data, firstName: v })}
-                placeholder="Ex. Blaise"
-              />
-              <Field
-                label="Nom *"
-                value={data.lastName}
-                onChange={(v) => setData({ ...data, lastName: v })}
-                placeholder="Ex. Kanku"
-              />
-              <Field
-                label="Téléphone"
-                value={data.phone}
-                onChange={(v) => setData({ ...data, phone: v })}
-                placeholder="+243 000 000 000"
-              />
-              <Field
-                label="Type de conducteur"
-                value={data.type}
-                onChange={(v) => setData({ ...data, type: v })}
-                select
-              />
-            </div>
-          </div>
-          <div className="form-section">
-            <h2>Informations professionnelles</h2>
-            <p className="muted">
-              Ces informations permettent une vérification rapide sur le
-              terrain.
-            </p>
-            <div className="form-grid">
-              <Field
-                label="Numéro de plaque"
-                value={data.plate}
-                onChange={(v) => setData({ ...data, plate: v })}
-                placeholder="Ex. KN-5421-AB"
-              />
-              <Field
-                label="Zone d’activité"
-                value={data.zone}
-                onChange={(v) => setData({ ...data, zone: v })}
-                placeholder="Ex. Ngaliema"
-              />
-            </div>
-          </div>
-          <div className="form-actions">
-            <button className="secondary" onClick={onCancel}>
-              Annuler
-            </button>
-            <button className="primary" onClick={onSave}>
-              <Check size={17} /> Enregistrer le profil
-            </button>
-          </div>
-        </section>
-        <aside className="side-note">
-          <div className="note-icon">
-            <QrCode size={21} />
-          </div>
-          <h3>QR code automatique</h3>
-          <p>
-            Un QR code unique et sécurisé sera généré automatiquement après
-            l’enregistrement du profil.
-          </p>
-          <div className="note-line">
-            <ShieldCheck size={16} /> Identité vérifiable publiquement
-          </div>
-          <div className="note-line">
-            <Download size={16} /> Téléchargeable et imprimable
-          </div>
-        </aside>
-      </div>
-    </>
-  );
-}
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  select,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  select?: boolean;
-}) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      {select ? (
-        <select value={value} onChange={(e) => onChange(e.target.value)}>
-          <option>Motard</option>
-          <option>Taxi</option>
-          <option>Taxi-bus</option>
-        </select>
-      ) : (
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-        />
-      )}
-    </label>
-  );
-}
 function QrScanner({ onScan, onClose }: { onScan: (code: string) => void; onClose: () => void }) {
   const [error, setError] = useState("");
   const [cameraActive, setCameraActive] = useState(false);
@@ -1096,22 +885,32 @@ function QrScanner({ onScan, onClose }: { onScan: (code: string) => void; onClos
   );
 }
 function Verify({ initialCode = "" }: { initialCode?: string }) {
-  const [result, setResult] = useState<Awaited<ReturnType<typeof apiVerifyRider>> | null>(null);
+  const [sheet, setSheet] = useState<IdentificationSheetPayload | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const verify = async (value = initialCode) => {
-    const normalized = value.trim();
-    if (!normalized) return;
+
+  useEffect(() => {
+    if (!initialCode) return;
     setLoading(true);
     setError("");
-    try { setResult(await apiVerifyRider(normalized)); } catch (verifyError) { setResult(null); setError(verifyError instanceof Error ? verifyError.message : "Identité introuvable"); } finally { setLoading(false); }
-  };
-  useEffect(() => {
-    if (initialCode) {
-      void verify(initialCode);
-    }
+    apiVerifyIdentification(initialCode)
+      .then((response) => {
+        if (response.success) setSheet(response.identification);
+        else setError(response.error);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "Identité introuvable"))
+      .finally(() => setLoading(false));
   }, [initialCode]);
-  const driverTypeLabel = result?.driver_type === 'chauffeur_taxi' ? 'Taxi' : result?.driver_type === 'chauffeur_taxi_bus' ? 'Taxi-bus' : result?.driver_type === 'motard' ? 'Motard' : result?.driver_type ?? '—';
+
+  const fullName = sheet ? `${sheet.driver.first_name} ${sheet.driver.last_name}` : '';
+  const fullOwnerName = sheet ? `${sheet.owner.first_name} ${sheet.owner.last_name}` : '';
+  const statusLabel: Record<IdentificationSheetPayload['administrative']['status'], string> = {
+    ACTIF: 'Identification valide',
+    SUSPENDU: 'Identification suspendue',
+    EXPIRE: 'Identification expirée',
+    ARCHIVE: 'Identification archivée',
+  };
+
   return (
     <div className="verify-page">
       <div className="verify-card">
@@ -1119,58 +918,79 @@ function Verify({ initialCode = "" }: { initialCode?: string }) {
           <ShieldCheck size={21} />
         </div>
         <p className="eyebrow">MOTAED · VÉRIFICATION PUBLIQUE</p>
-        <h1>Identité vérifiée</h1>
+        <h1>Fiche d'identification</h1>
         {loading && <p className="muted">Vérification en cours...</p>}
         {error && <p className="login-error">{error}</p>}
-        {result && (
-          <div className="verify-public-card">
-            <div className="verify-photo">
-              {result.photo_url ? (
-                <img src={result.photo_url} alt={`${result.first_name} ${result.last_name}`} />
+        {sheet && (
+          <div className="sheet-card">
+            <div className={`sheet-status ${sheet.administrative.status.toLowerCase()}`}>
+              {sheet.administrative.status === 'ACTIF' ? '✓' : '⚠'} {statusLabel[sheet.administrative.status]}
+            </div>
+            <div className="sheet-number mono">{sheet.identification_number}</div>
+
+            <section className="sheet-section">
+              <h3 className="sheet-section-title">IDENTIFICATION</h3>
+              {sheet.driver.photo ? (
+                <img className="sheet-photo" src={sheet.driver.photo} alt={fullName} />
               ) : (
-                <div className="avatar-placeholder">
-                  {result.first_name[0]}{result.last_name[0]}
-                </div>
+                <div className="avatar-placeholder">{sheet.driver.first_name[0]}{sheet.driver.last_name[0]}</div>
               )}
-            </div>
-            <div className="verify-info">
-              <h2>{result.first_name} {result.last_name}</h2>
-              <div className="verify-grid">
-                <div className="verify-item">
-                  <span className="verify-label">Type</span>
-                  <span className="verify-value">{driverTypeLabel}</span>
-                </div>
-                <div className="verify-item">
-                  <span className="verify-label">Identifiant</span>
-                  <span className="verify-value mono">{result.identification_number}</span>
-                </div>
-                <div className="verify-item">
-                  <span className="verify-label">Plaque</span>
-                  <span className="verify-value mono">{result.plate_number ?? "Non renseignée"}</span>
-                </div>
-                <div className="verify-item">
-                  <span className="verify-label">Marque / Modèle</span>
-                  <span className="verify-value">{result.vehicle_brand ?? "—"} {result.vehicle_model ?? ""}</span>
-                </div>
-                <div className="verify-item">
-                  <span className="verify-label">Zone d’activité</span>
-                  <span className="verify-value">{result.activity_zone ?? "Non renseignée"}</span>
-                </div>
-                <div className="verify-item">
-                  <span className="verify-label">Statut</span>
-                  <span className={`verify-status ${result.status}`}>{result.status}</span>
-                </div>
+              <div className="sheet-grid">
+                <div className="sheet-item"><span>Nom complet</span><strong>{fullName}</strong></div>
+                <div className="sheet-item"><span>Téléphone</span><strong>{sheet.driver.phone ?? '—'}</strong></div>
+                <div className="sheet-item"><span>Date de naissance</span><strong>{sheet.driver.date_of_birth ?? '—'}</strong></div>
+                <div className="sheet-item"><span>Lieu de naissance</span><strong>{sheet.driver.place_of_birth ?? '—'}</strong></div>
+                <div className="sheet-item"><span>Sexe</span><strong>{sheet.driver.gender === 'M' ? 'Masculin' : sheet.driver.gender === 'F' ? 'Féminin' : sheet.driver.gender ?? '—'}</strong></div>
+                <div className="sheet-item"><span>Adresse</span><strong>{[sheet.driver.commune, sheet.driver.chefferie_sector, sheet.driver.neighborhood_group, sheet.driver.avenue_village].filter(Boolean).join(' · ') || '—'}</strong></div>
               </div>
-              <small className="public-note">
-                <ShieldCheck size={14} /> Données professionnelles vérifiées le {new Date(result.updated_at).toLocaleDateString('fr-FR')}
-              </small>
-            </div>
+            </section>
+
+            <section className="sheet-section">
+              <h3 className="sheet-section-title">ENGIN</h3>
+              <div className="sheet-grid">
+                <div className="sheet-item"><span>Plaque</span><strong className="mono">{sheet.vehicle.registration_number}</strong></div>
+                <div className="sheet-item"><span>Type</span><strong>{sheet.vehicle.type === 'MOTO' ? 'Motocycle' : 'Tricycle'}</strong></div>
+                <div className="sheet-item"><span>Marque</span><strong>{sheet.vehicle.brand ?? '—'}</strong></div>
+                <div className="sheet-item"><span>Couleur</span><strong>{sheet.vehicle.color ?? '—'}</strong></div>
+                <div className="sheet-item"><span>Numéro de châssis</span><strong className="mono">{sheet.vehicle.chassis_number ?? '—'}</strong></div>
+                <div className="sheet-item"><span>Numéro moteur</span><strong className="mono">{sheet.vehicle.engine_number ?? '—'}</strong></div>
+                <div className="sheet-item"><span>Usage</span><strong>{sheet.vehicle.usage === 'TAXI_TRANSPORT_PUBLIC' ? 'Taxi / Transport public' : sheet.vehicle.usage === 'PERSONNEL' ? 'Personnel' : 'Autre'}</strong></div>
+              </div>
+            </section>
+
+            <section className="sheet-section">
+              <h3 className="sheet-section-title">PROPRIÉTAIRE</h3>
+              {sheet.owner.photo ? (
+                <img className="sheet-photo" src={sheet.owner.photo} alt={fullOwnerName} />
+              ) : (
+                <div className="avatar-placeholder">{sheet.owner.first_name[0]}{sheet.owner.last_name[0]}</div>
+              )}
+              <div className="sheet-grid">
+                <div className="sheet-item"><span>Nom complet</span><strong>{fullOwnerName}</strong></div>
+                <div className="sheet-item"><span>Téléphone</span><strong>{sheet.owner.phone ?? '—'}</strong></div>
+                <div className="sheet-item"><span>Adresse</span><strong>{[sheet.owner.commune, sheet.owner.chefferie_sector, sheet.owner.neighborhood_group, sheet.owner.avenue_village].filter(Boolean).join(' · ') || '—'}</strong></div>
+              </div>
+            </section>
+
+            <section className="sheet-section">
+              <h3 className="sheet-section-title">INFORMATIONS ADMINISTRATIVES</h3>
+              <div className="sheet-grid">
+                <div className="sheet-item"><span>Date d'enregistrement</span><strong>{sheet.administrative.issue_date ?? '—'}</strong></div>
+                <div className="sheet-item"><span>Lieu</span><strong>{sheet.administrative.issue_location ?? '—'}</strong></div>
+                <div className="sheet-item"><span>Émis par</span><strong>{sheet.administrative.issued_by || '—'}</strong></div>
+                <div className="sheet-item"><span>Statut</span><strong>{sheet.administrative.status}</strong></div>
+              </div>
+            </section>
+
+            <small className="public-note">
+              <ShieldCheck size={14} /> Données professionnelles vérifiées via MOTAED.
+            </small>
           </div>
         )}
-        {!result && !loading && !error && (
+        {!sheet && !loading && !error && (
           <div className="verify-empty">
             <QrCode size={48} strokeWidth={1.2} />
-            <p>Scannez un QR code MOTAED pour vérifier une identité.</p>
+            <p>Scannez un QR code MOTAED pour vérifier une fiche d'identification.</p>
           </div>
         )}
       </div>
@@ -1306,6 +1126,338 @@ function HelpCenter() {
             <p>{item.a}</p>
           </details>
         ))}
+      </section>
+    </div>
+  );
+}
+
+type StepForm = {
+  owner: {
+    first_name: string; last_name: string; middle_name: string;
+    date_of_birth: string; place_of_birth: string;
+    gender: '' | 'M' | 'F' | 'AUTRE';
+    phone: string; guardian_name: string; guardian_phone: string;
+    commune: string; chefferie_sector: string; neighborhood_group: string; avenue_village: string;
+    photo: string;
+  };
+  vehicle: {
+    registration_number: string;
+    vehicle_type: 'MOTO' | 'TRICYCLE';
+    brand: string; chassis_number: string; engine_number: string; color: string;
+    usage: 'TAXI_TRANSPORT_PUBLIC' | 'PERSONNEL' | 'AUTRE';
+  };
+  driver: {
+    first_name: string; last_name: string; middle_name: string;
+    date_of_birth: string; place_of_birth: string;
+    gender: '' | 'M' | 'F' | 'AUTRE';
+    phone: string; father_name: string; mother_name: string;
+    marital_status: '' | 'CELIBATAIRE' | 'MARIE' | 'DIVORCE' | 'VEUF';
+    commune: string; chefferie_sector: string; neighborhood_group: string; avenue_village: string;
+    origin: string; photo: string;
+  };
+  issue_location: string;
+};
+
+const initialSheet: StepForm = {
+  owner: { first_name: '', last_name: '', middle_name: '', date_of_birth: '', place_of_birth: '', gender: '', phone: '', guardian_name: '', guardian_phone: '', commune: '', chefferie_sector: '', neighborhood_group: '', avenue_village: '', photo: '' },
+  vehicle: { registration_number: '', vehicle_type: 'MOTO', brand: '', chassis_number: '', engine_number: '', color: '', usage: 'TAXI_TRANSPORT_PUBLIC' },
+  driver: { first_name: '', last_name: '', middle_name: '', date_of_birth: '', place_of_birth: '', gender: '', phone: '', father_name: '', mother_name: '', marital_status: '', commune: '', chefferie_sector: '', neighborhood_group: '', avenue_village: '', origin: '', photo: '' },
+  issue_location: '',
+};
+
+function PhotoField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const inputId = React.useId();
+  return (
+    <div className="photo-upload">
+      {value ? (
+        <div className="photo-preview">
+          <img src={value} alt={label} />
+          <button type="button" className="photo-remove" onClick={() => onChange('')}><X size={14} /></button>
+        </div>
+      ) : (
+        <>
+          <div className="upload-icon"><UserRound size={24} /></div>
+          <div>
+            <strong>{label}</strong>
+            <small>JPG ou PNG, 5 MB maximum</small>
+          </div>
+        </>
+      )}
+      <div>
+        <input id={inputId} type="file" accept="image/*" hidden onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => onChange(reader.result as string);
+          reader.readAsDataURL(file);
+        }} />
+        <button type="button" className="secondary" onClick={() => document.getElementById(inputId)?.click()}>
+          {value ? 'Changer' : 'Choisir une photo'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NewIdentificationSheet({ onCancel, onCreated }: { onCancel: () => void; onCreated: () => void }) {
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [form, setForm] = useState<StepForm>(initialSheet);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [created, setCreated] = useState<CreateIdentificationResponse | null>(null);
+  const [qrImage, setQrImage] = useState('');
+
+  const update = <K extends keyof StepForm>(section: K, key: string, value: string) => {
+    setForm((prev) => ({ ...prev, [section]: { ...(prev[section] as Record<string, string>), [key]: value } }))
+  };
+
+  const validateStep = (s: number): string => {
+    if (s === 1) {
+      if (!form.owner.first_name) return 'Le nom du propriétaire est obligatoire';
+      if (!form.owner.last_name) return 'Le post-nom du propriétaire est obligatoire';
+      if (!form.owner.date_of_birth) return 'La date de naissance est obligatoire';
+      if (!form.owner.gender) return 'Le sexe est obligatoire';
+      if (!form.owner.phone) return 'Le téléphone est obligatoire';
+      if (!form.owner.commune) return 'L\'adresse (commune) est obligatoire';
+    }
+    if (s === 2) {
+      if (!form.vehicle.registration_number) return 'Le numéro de plaque est obligatoire';
+      if (!form.vehicle.vehicle_type) return 'Le type d\'engin est obligatoire';
+    }
+    if (s === 3) {
+      if (!form.driver.first_name) return 'Le nom du conducteur est obligatoire';
+      if (!form.driver.last_name) return 'Le post-nom du conducteur est obligatoire';
+      if (!form.driver.commune) return 'La commune du conducteur est obligatoire';
+    }
+    if (s === 4) {
+      if (!form.issue_location) return 'Le lieu d\'enregistrement est obligatoire';
+    }
+    return '';
+  };
+
+  const next = () => {
+    const err = validateStep(step);
+    if (err) { setError(err); return; }
+    setError('');
+    setStep((s) => (Math.min(5, s + 1) as 1 | 2 | 3 | 4 | 5));
+  };
+  const back = () => { setError(''); setStep((s) => (Math.max(1, s - 1) as 1 | 2 | 3 | 4 | 5)) };
+
+  const submit = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const data: CreateIdentificationInput = {
+        owner: { ...form.owner, gender: (form.owner.gender || undefined) as 'M' | 'F' | 'AUTRE' | undefined },
+        vehicle: form.vehicle,
+        driver: { ...form.driver, gender: (form.driver.gender || undefined) as 'M' | 'F' | 'AUTRE' | undefined, marital_status: (form.driver.marital_status || undefined) as 'CELIBATAIRE' | 'MARIE' | 'DIVORCE' | 'VEUF' | undefined },
+        issue_location: form.issue_location,
+        status: 'ACTIF',
+      };
+      const result = await createIdentification(data);
+      const image = await QRCode.toDataURL(result.qr_code_url, { width: 320, margin: 2, color: { dark: '#173c50', light: '#ffffff' } });
+      setQrImage(image);
+      setCreated(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'enregistrement');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (created) {
+    return (
+      <div className="panel creation-success">
+        <div>
+          <span className="success-badge"><Check size={16} /></span>
+          <p className="eyebrow">ENREGISTREMENT RÉUSSI</p>
+          <h2>Fiche d'identification créée</h2>
+          <p className="muted">La fiche est maintenant enregistrée dans votre base de données.</p>
+          <div className="success-details">
+            <strong>{created.driver.first_name} {created.driver.last_name}</strong>
+            <span className="mono">{created.identification_number}</span>
+            <span className="mono">{created.vehicle.registration_number} · {created.vehicle.vehicle_type === 'MOTO' ? 'Motocycle' : 'Tricycle'}</span>
+            <span className="status actif"><i />{created.status}</span>
+          </div>
+          <div className="success-actions">
+            <a className="primary" href={qrImage} download={`${created.identification_number.replace(/\//g, '-')}-qr.png`}><Download size={16} /> Télécharger le QR Code</a>
+            <a className="secondary" href={created.qr_code_url} target="_blank" rel="noreferrer">Voir la fiche</a>
+            <button className="secondary" onClick={() => window.print()}>Imprimer la fiche</button>
+            <button className="text-button" onClick={onCreated}>Modifier</button>
+          </div>
+        </div>
+        <div className="qr-preview">
+          <img src={qrImage} alt="QR Code" />
+          <small>Scanner pour vérifier la fiche</small>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="sheet-wizard">
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">NOUVELLE FICHE D'IDENTIFICATION</p>
+          <h1>Enregistrement officiel</h1>
+          <p className="muted">Étape {step} sur 5 — {step === 1 ? 'Propriétaire' : step === 2 ? 'Engin' : step === 3 ? 'Conducteur' : step === 4 ? 'Informations administratives' : 'Vérification'}</p>
+        </div>
+      </div>
+      <div className="wizard-steps">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <div key={n} className={`wizard-step ${step >= n ? 'active' : ''}`}>
+            <span>{n}</span>
+            <small>{n === 1 ? 'Propriétaire' : n === 2 ? 'Engin' : n === 3 ? 'Conducteur' : n === 4 ? 'Administratif' : 'Vérification'}</small>
+          </div>
+        ))}
+      </div>
+      <section className="panel">
+        {error && <p className="login-error">{error}</p>}
+
+        {step === 1 && (
+          <div className="form-section">
+            <h2>I. Identification du propriétaire</h2>
+            <div className="form-grid">
+              <label className="field"><span>Nom *</span><input value={form.owner.first_name} onChange={(e) => update('owner', 'first_name', e.target.value)} /></label>
+              <label className="field"><span>Post-nom *</span><input value={form.owner.last_name} onChange={(e) => update('owner', 'last_name', e.target.value)} /></label>
+              <label className="field"><span>Prénom</span><input value={form.owner.middle_name} onChange={(e) => update('owner', 'middle_name', e.target.value)} /></label>
+              <label className="field"><span>Date de naissance *</span><input type="date" value={form.owner.date_of_birth} onChange={(e) => update('owner', 'date_of_birth', e.target.value)} /></label>
+              <label className="field"><span>Lieu de naissance</span><input value={form.owner.place_of_birth} onChange={(e) => update('owner', 'place_of_birth', e.target.value)} /></label>
+              <label className="field"><span>Sexe *</span>
+                <select value={form.owner.gender} onChange={(e) => update('owner', 'gender', e.target.value)}>
+                  <option value="">— Sélectionner —</option><option value="M">Masculin</option><option value="F">Féminin</option><option value="AUTRE">Autre</option>
+                </select>
+              </label>
+              <label className="field"><span>Téléphone *</span><input value={form.owner.phone} onChange={(e) => update('owner', 'phone', e.target.value)} placeholder="+243 ..." /></label>
+              <label className="field"><span>Personne de tutelle</span><input value={form.owner.guardian_name} onChange={(e) => update('owner', 'guardian_name', e.target.value)} /></label>
+              <label className="field"><span>Téléphone de la tutelle</span><input value={form.owner.guardian_phone} onChange={(e) => update('owner', 'guardian_phone', e.target.value)} /></label>
+              <label className="field"><span>Commune *</span><input value={form.owner.commune} onChange={(e) => update('owner', 'commune', e.target.value)} /></label>
+              <label className="field"><span>Chefferie / Secteur</span><input value={form.owner.chefferie_sector} onChange={(e) => update('owner', 'chefferie_sector', e.target.value)} /></label>
+              <label className="field"><span>Quartier / Groupement</span><input value={form.owner.neighborhood_group} onChange={(e) => update('owner', 'neighborhood_group', e.target.value)} /></label>
+              <label className="field"><span>Avenue / Village</span><input value={form.owner.avenue_village} onChange={(e) => update('owner', 'avenue_village', e.target.value)} /></label>
+            </div>
+            <PhotoField label="Photo du propriétaire" value={form.owner.photo} onChange={(v) => update('owner', 'photo', v)} />
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="form-section">
+            <h2>II. Identification de l'engin</h2>
+            <div className="form-grid">
+              <label className="field"><span>Numéro de plaque *</span><input value={form.vehicle.registration_number} onChange={(e) => update('vehicle', 'registration_number', e.target.value.toUpperCase())} placeholder="KN-1234-AB" /></label>
+              <label className="field"><span>Type *</span>
+                <select value={form.vehicle.vehicle_type} onChange={(e) => update('vehicle', 'vehicle_type', e.target.value)}>
+                  <option value="MOTO">Motocycle</option><option value="TRICYCLE">Tricycle</option>
+                </select>
+              </label>
+              <label className="field"><span>Marque</span><input value={form.vehicle.brand} onChange={(e) => update('vehicle', 'brand', e.target.value)} placeholder="Honda, TVS, ..." /></label>
+              <label className="field"><span>Numéro de châssis</span><input className="mono" value={form.vehicle.chassis_number} onChange={(e) => update('vehicle', 'chassis_number', e.target.value)} /></label>
+              <label className="field"><span>Numéro moteur</span><input className="mono" value={form.vehicle.engine_number} onChange={(e) => update('vehicle', 'engine_number', e.target.value)} /></label>
+              <label className="field"><span>Couleur</span><input value={form.vehicle.color} onChange={(e) => update('vehicle', 'color', e.target.value)} /></label>
+              <label className="field"><span>Usage</span>
+                <select value={form.vehicle.usage} onChange={(e) => update('vehicle', 'usage', e.target.value)}>
+                  <option value="TAXI_TRANSPORT_PUBLIC">Taxi / Transport public</option>
+                  <option value="PERSONNEL">Personnel</option>
+                  <option value="AUTRE">Autre</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="form-section">
+            <h2>III. Identité du conducteur</h2>
+            <div className="form-grid">
+              <label className="field"><span>Nom *</span><input value={form.driver.first_name} onChange={(e) => update('driver', 'first_name', e.target.value)} /></label>
+              <label className="field"><span>Post-nom *</span><input value={form.driver.last_name} onChange={(e) => update('driver', 'last_name', e.target.value)} /></label>
+              <label className="field"><span>Prénom</span><input value={form.driver.middle_name} onChange={(e) => update('driver', 'middle_name', e.target.value)} /></label>
+              <label className="field"><span>Date de naissance</span><input type="date" value={form.driver.date_of_birth} onChange={(e) => update('driver', 'date_of_birth', e.target.value)} /></label>
+              <label className="field"><span>Lieu de naissance</span><input value={form.driver.place_of_birth} onChange={(e) => update('driver', 'place_of_birth', e.target.value)} /></label>
+              <label className="field"><span>Sexe</span>
+                <select value={form.driver.gender} onChange={(e) => update('driver', 'gender', e.target.value)}>
+                  <option value="">— Sélectionner —</option><option value="M">Masculin</option><option value="F">Féminin</option><option value="AUTRE">Autre</option>
+                </select>
+              </label>
+              <label className="field"><span>Téléphone</span><input value={form.driver.phone} onChange={(e) => update('driver', 'phone', e.target.value)} /></label>
+              <label className="field"><span>Nom du père</span><input value={form.driver.father_name} onChange={(e) => update('driver', 'father_name', e.target.value)} /></label>
+              <label className="field"><span>Nom de la mère</span><input value={form.driver.mother_name} onChange={(e) => update('driver', 'mother_name', e.target.value)} /></label>
+              <label className="field"><span>État civil</span>
+                <select value={form.driver.marital_status} onChange={(e) => update('driver', 'marital_status', e.target.value)}>
+                  <option value="">— Sélectionner —</option><option value="CELIBATAIRE">Célibataire</option><option value="MARIE">Marié(e)</option><option value="DIVORCE">Divorcé(e)</option><option value="VEUF">Veuf / Veuve</option>
+                </select>
+              </label>
+              <label className="field"><span>Commune *</span><input value={form.driver.commune} onChange={(e) => update('driver', 'commune', e.target.value)} /></label>
+              <label className="field"><span>Chefferie / Secteur</span><input value={form.driver.chefferie_sector} onChange={(e) => update('driver', 'chefferie_sector', e.target.value)} /></label>
+              <label className="field"><span>Quartier / Groupement</span><input value={form.driver.neighborhood_group} onChange={(e) => update('driver', 'neighborhood_group', e.target.value)} /></label>
+              <label className="field"><span>Avenue / Village</span><input value={form.driver.avenue_village} onChange={(e) => update('driver', 'avenue_village', e.target.value)} /></label>
+              <label className="field"><span>Originaire de</span><input value={form.driver.origin} onChange={(e) => update('driver', 'origin', e.target.value)} /></label>
+            </div>
+            <PhotoField label="Photo du conducteur" value={form.driver.photo} onChange={(v) => update('driver', 'photo', v)} />
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="form-section">
+            <h2>IV. Informations administratives</h2>
+            <div className="form-grid">
+              <label className="field"><span>Lieu d'enregistrement *</span><input value={form.issue_location} onChange={(e) => setForm({ ...form, issue_location: e.target.value })} placeholder="Bureau, ville" /></label>
+              <div className="field"><span>Date d'enregistrement</span><strong>{new Date().toLocaleDateString('fr-FR')}</strong></div>
+              <div className="field"><span>Numéro d'identification</span><strong>Généré automatiquement</strong></div>
+              <div className="field"><span>Statut</span><strong>ACTIF</strong></div>
+            </div>
+          </div>
+        )}
+
+        {step === 5 && (
+          <div className="form-section">
+            <h2>V. Vérification des informations</h2>
+            <p className="muted">Veuillez vérifier toutes les informations avant l'enregistrement définitif.</p>
+
+            <h3 className="sheet-section-title">Propriétaire</h3>
+            <div className="sheet-grid">
+              <div className="sheet-item"><span>Nom</span><strong>{form.owner.first_name} {form.owner.last_name} {form.owner.middle_name}</strong></div>
+              <div className="sheet-item"><span>Date de naissance</span><strong>{form.owner.date_of_birth || '—'}</strong></div>
+              <div className="sheet-item"><span>Sexe</span><strong>{form.owner.gender || '—'}</strong></div>
+              <div className="sheet-item"><span>Téléphone</span><strong>{form.owner.phone || '—'}</strong></div>
+              <div className="sheet-item"><span>Adresse</span><strong>{[form.owner.commune, form.owner.chefferie_sector, form.owner.neighborhood_group, form.owner.avenue_village].filter(Boolean).join(' · ')}</strong></div>
+            </div>
+
+            <h3 className="sheet-section-title">Engin</h3>
+            <div className="sheet-grid">
+              <div className="sheet-item"><span>Plaque</span><strong className="mono">{form.vehicle.registration_number}</strong></div>
+              <div className="sheet-item"><span>Type</span><strong>{form.vehicle.vehicle_type}</strong></div>
+              <div className="sheet-item"><span>Marque</span><strong>{form.vehicle.brand || '—'}</strong></div>
+              <div className="sheet-item"><span>Couleur</span><strong>{form.vehicle.color || '—'}</strong></div>
+              <div className="sheet-item"><span>Châssis</span><strong className="mono">{form.vehicle.chassis_number || '—'}</strong></div>
+              <div className="sheet-item"><span>Usage</span><strong>{form.vehicle.usage}</strong></div>
+            </div>
+
+            <h3 className="sheet-section-title">Conducteur</h3>
+            <div className="sheet-grid">
+              <div className="sheet-item"><span>Nom</span><strong>{form.driver.first_name} {form.driver.last_name} {form.driver.middle_name}</strong></div>
+              <div className="sheet-item"><span>Date de naissance</span><strong>{form.driver.date_of_birth || '—'}</strong></div>
+              <div className="sheet-item"><span>Sexe</span><strong>{form.driver.gender || '—'}</strong></div>
+              <div className="sheet-item"><span>Téléphone</span><strong>{form.driver.phone || '—'}</strong></div>
+              <div className="sheet-item"><span>Père / Mère</span><strong>{form.driver.father_name || '—'} / {form.driver.mother_name || '—'}</strong></div>
+              <div className="sheet-item"><span>État civil</span><strong>{form.driver.marital_status || '—'}</strong></div>
+              <div className="sheet-item"><span>Adresse</span><strong>{[form.driver.commune, form.driver.chefferie_sector, form.driver.neighborhood_group, form.driver.avenue_village].filter(Boolean).join(' · ')}</strong></div>
+            </div>
+
+            <h3 className="sheet-section-title">Administratif</h3>
+            <div className="sheet-grid">
+              <div className="sheet-item"><span>Lieu d'enregistrement</span><strong>{form.issue_location}</strong></div>
+              <div className="sheet-item"><span>Date d'enregistrement</span><strong>{new Date().toLocaleDateString('fr-FR')}</strong></div>
+            </div>
+          </div>
+        )}
+
+        <div className="form-actions">
+          {step > 1 && <button className="secondary" onClick={back}>Retour</button>}
+          <button className="text-button" onClick={onCancel}>Annuler</button>
+          {step < 5 && <button className="primary" onClick={next}>Suivant</button>}
+          {step === 5 && <button className="primary" onClick={submit} disabled={saving}>{saving ? 'Enregistrement...' : 'ENREGISTRER LA FICHE'}</button>}
+        </div>
       </section>
     </div>
   );
