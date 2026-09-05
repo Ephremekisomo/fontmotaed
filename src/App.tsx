@@ -916,11 +916,23 @@ function Verify({ initialCode = "" }: { initialCode?: string }) {
       <div className="verify-card">
         <div className="verify-header">
           <span className="verify-flag" aria-hidden="true">
-            <svg viewBox="0 0 36 24" width="36" height="24" aria-hidden="true"><rect width="36" height="24" fill="#0053b5"/><rect y="8" width="36" height="8" fill="#ce1126"/><rect y="16" width="36" height="8" fill="#f7d617"/></svg>
+            <svg viewBox="0 0 72 48" width="72" height="48" aria-hidden="true">
+              <rect width="72" height="48" fill="#0053b5"/>
+              <rect x="8" y="8" width="56" height="32" fill="none" stroke="#f7d617" strokeWidth="2"/>
+              <polygon points="24,14 26,22 34,22 28,27 30,35 24,30 18,35 20,27 14,22 22,22" fill="#f7d617"/>
+              <polygon points="26,16 27,20 31,20 28,23 29,27 26,24 23,27 24,23 21,20 25,20" fill="#0053b5"/>
+              <line x1="8" y1="8" x2="64" y2="40" stroke="#ce1126" strokeWidth="10"/>
+            </svg>
           </span>
           <span className="verify-country">Republique democratique du congo</span>
           <span className="verify-flag" aria-hidden="true">
-            <svg viewBox="0 0 36 24" width="36" height="24" aria-hidden="true"><rect width="36" height="24" fill="#0053b5"/><rect y="8" width="36" height="8" fill="#ce1126"/><rect y="16" width="36" height="8" fill="#f7d617"/></svg>
+            <svg viewBox="0 0 72 48" width="72" height="48" aria-hidden="true">
+              <rect width="72" height="48" fill="#0053b5"/>
+              <rect x="8" y="8" width="56" height="32" fill="none" stroke="#f7d617" strokeWidth="2"/>
+              <polygon points="24,14 26,22 34,22 28,27 30,35 24,30 18,35 20,27 14,22 22,22" fill="#f7d617"/>
+              <polygon points="26,16 27,20 31,20 28,23 29,27 26,24 23,27 24,23 21,20 25,20" fill="#0053b5"/>
+              <line x1="8" y1="8" x2="64" y2="40" stroke="#ce1126" strokeWidth="10"/>
+            </svg>
           </span>
         </div>
         <p className="verify-org">Coordination des motocycle et trycile CMtt NK</p>
