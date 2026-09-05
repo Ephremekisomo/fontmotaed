@@ -914,11 +914,13 @@ function Verify({ initialCode = "" }: { initialCode?: string }) {
   return (
     <div className="verify-page">
       <div className="verify-card">
-        <div className="verify-logo">
-          <ShieldCheck size={21} />
+        <div className="verify-header">
+          <span className="verify-flag" aria-hidden="true">🇨🇩</span>
+          <span className="verify-country">Republique democratique du congo</span>
+          <span className="verify-flag" aria-hidden="true">🇨🇩</span>
         </div>
-        <p className="eyebrow">MOTAED · VÉRIFICATION PUBLIQUE</p>
-        <h1>Fiche d'identification</h1>
+        <p className="verify-org">Coordination des motocycle et trycile CMtt NK</p>
+        <hr className="verify-divider-black" />
         {loading && <p className="muted">Vérification en cours...</p>}
         {error && <p className="login-error">{error}</p>}
         {sheet && (
@@ -930,18 +932,20 @@ function Verify({ initialCode = "" }: { initialCode?: string }) {
 
             <section className="sheet-section">
               <h3 className="sheet-section-title">IDENTIFICATION</h3>
-              {sheet.driver.photo ? (
-                <img className="sheet-photo" src={sheet.driver.photo} alt={fullName} />
-              ) : (
-                <div className="avatar-placeholder">{sheet.driver.first_name[0]}{sheet.driver.last_name[0]}</div>
-              )}
-              <div className="sheet-grid">
-                <div className="sheet-item"><span>Nom complet</span><strong>{fullName}</strong></div>
-                <div className="sheet-item"><span>Téléphone</span><strong>{sheet.driver.phone ?? '—'}</strong></div>
-                <div className="sheet-item"><span>Date de naissance</span><strong>{sheet.driver.date_of_birth ?? '—'}</strong></div>
-                <div className="sheet-item"><span>Lieu de naissance</span><strong>{sheet.driver.place_of_birth ?? '—'}</strong></div>
-                <div className="sheet-item"><span>Sexe</span><strong>{sheet.driver.gender === 'M' ? 'Masculin' : sheet.driver.gender === 'F' ? 'Féminin' : sheet.driver.gender ?? '—'}</strong></div>
-                <div className="sheet-item"><span>Adresse</span><strong>{[sheet.driver.commune, sheet.driver.chefferie_sector, sheet.driver.neighborhood_group, sheet.driver.avenue_village].filter(Boolean).join(' · ') || '—'}</strong></div>
+              <div className="sheet-header-row">
+                {sheet.driver.photo ? (
+                  <img className="sheet-photo" src={sheet.driver.photo} alt={fullName} />
+                ) : (
+                  <div className="avatar-placeholder">{sheet.driver.first_name[0]}{sheet.driver.last_name[0]}</div>
+                )}
+                <div className="sheet-grid">
+                  <div className="sheet-item"><span>Nom complet</span><strong>{fullName}</strong></div>
+                  <div className="sheet-item"><span>Téléphone</span><strong>{sheet.driver.phone ?? '—'}</strong></div>
+                  <div className="sheet-item"><span>Date de naissance</span><strong>{sheet.driver.date_of_birth ?? '—'}</strong></div>
+                  <div className="sheet-item"><span>Lieu de naissance</span><strong>{sheet.driver.place_of_birth ?? '—'}</strong></div>
+                  <div className="sheet-item"><span>Sexe</span><strong>{sheet.driver.gender === 'M' ? 'Masculin' : sheet.driver.gender === 'F' ? 'Féminin' : sheet.driver.gender ?? '—'}</strong></div>
+                  <div className="sheet-item"><span>Adresse</span><strong>{[sheet.driver.commune, sheet.driver.chefferie_sector, sheet.driver.neighborhood_group, sheet.driver.avenue_village].filter(Boolean).join(' · ') || '—'}</strong></div>
+                </div>
               </div>
             </section>
 
@@ -960,15 +964,17 @@ function Verify({ initialCode = "" }: { initialCode?: string }) {
 
             <section className="sheet-section">
               <h3 className="sheet-section-title">PROPRIÉTAIRE</h3>
-              {sheet.owner.photo ? (
-                <img className="sheet-photo" src={sheet.owner.photo} alt={fullOwnerName} />
-              ) : (
-                <div className="avatar-placeholder">{sheet.owner.first_name[0]}{sheet.owner.last_name[0]}</div>
-              )}
-              <div className="sheet-grid">
-                <div className="sheet-item"><span>Nom complet</span><strong>{fullOwnerName}</strong></div>
-                <div className="sheet-item"><span>Téléphone</span><strong>{sheet.owner.phone ?? '—'}</strong></div>
-                <div className="sheet-item"><span>Adresse</span><strong>{[sheet.owner.commune, sheet.owner.chefferie_sector, sheet.owner.neighborhood_group, sheet.owner.avenue_village].filter(Boolean).join(' · ') || '—'}</strong></div>
+              <div className="sheet-header-row">
+                {sheet.owner.photo ? (
+                  <img className="sheet-photo" src={sheet.owner.photo} alt={fullOwnerName} />
+                ) : (
+                  <div className="avatar-placeholder">{sheet.owner.first_name[0]}{sheet.owner.last_name[0]}</div>
+                )}
+                <div className="sheet-grid">
+                  <div className="sheet-item"><span>Nom complet</span><strong>{fullOwnerName}</strong></div>
+                  <div className="sheet-item"><span>Téléphone</span><strong>{sheet.owner.phone ?? '—'}</strong></div>
+                  <div className="sheet-item"><span>Adresse</span><strong>{[sheet.owner.commune, sheet.owner.chefferie_sector, sheet.owner.neighborhood_group, sheet.owner.avenue_village].filter(Boolean).join(' · ') || '—'}</strong></div>
+                </div>
               </div>
             </section>
 
