@@ -755,12 +755,16 @@ td {
   margin-bottom: 6px;
 }
 .verify-flag {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  object-fit: cover;
+  width: 36px;
+  height: 24px;
+  border-radius: 3px;
+  overflow: hidden;
   border: 1px solid var(--line);
+  display: inline-grid;
+  place-items: center;
+  background: #e6e9ee;
 }
+.verify-flag svg { display: block; }
 .verify-country {
   font: 700 13px Manrope;
   color: #1e4bbd;
@@ -860,9 +864,21 @@ td {
 .sheet-header-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 .sheet-header-row + .sheet-grid { margin-top: 10px; }
+.sheet-body { flex: 1; min-width: 0; }
+.sheet-photo-col { display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sheet-thumb {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 2px dashed #cfe5dc;
+  background: #f4f9f7;
+  color: #6f9a8c;
+  display: grid;
+  place-items: center;
+}
 .scanner {
   height: 210px;
   margin: 26px 0 18px;

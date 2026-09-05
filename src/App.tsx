@@ -915,9 +915,13 @@ function Verify({ initialCode = "" }: { initialCode?: string }) {
     <div className="verify-page">
       <div className="verify-card">
         <div className="verify-header">
-          <span className="verify-flag" aria-hidden="true">🇨🇩</span>
+          <span className="verify-flag" aria-hidden="true">
+            <svg viewBox="0 0 36 24" width="36" height="24" aria-hidden="true"><rect width="36" height="24" fill="#0053b5"/><rect y="8" width="36" height="8" fill="#ce1126"/><rect y="16" width="36" height="8" fill="#f7d617"/></svg>
+          </span>
           <span className="verify-country">Republique democratique du congo</span>
-          <span className="verify-flag" aria-hidden="true">🇨🇩</span>
+          <span className="verify-flag" aria-hidden="true">
+            <svg viewBox="0 0 36 24" width="36" height="24" aria-hidden="true"><rect width="36" height="24" fill="#0053b5"/><rect y="8" width="36" height="8" fill="#ce1126"/><rect y="16" width="36" height="8" fill="#f7d617"/></svg>
+          </span>
         </div>
         <p className="verify-org">Coordination des motocycle et trycile CMtt NK</p>
         <hr className="verify-divider-black" />
@@ -933,58 +937,80 @@ function Verify({ initialCode = "" }: { initialCode?: string }) {
             <section className="sheet-section">
               <h3 className="sheet-section-title">IDENTIFICATION</h3>
               <div className="sheet-header-row">
-                {sheet.driver.photo ? (
-                  <img className="sheet-photo" src={sheet.driver.photo} alt={fullName} />
-                ) : (
-                  <div className="avatar-placeholder">{sheet.driver.first_name[0]}{sheet.driver.last_name[0]}</div>
-                )}
-                <div className="sheet-grid">
-                  <div className="sheet-item"><span>Nom complet</span><strong>{fullName}</strong></div>
-                  <div className="sheet-item"><span>Téléphone</span><strong>{sheet.driver.phone ?? '—'}</strong></div>
-                  <div className="sheet-item"><span>Date de naissance</span><strong>{sheet.driver.date_of_birth ?? '—'}</strong></div>
-                  <div className="sheet-item"><span>Lieu de naissance</span><strong>{sheet.driver.place_of_birth ?? '—'}</strong></div>
-                  <div className="sheet-item"><span>Sexe</span><strong>{sheet.driver.gender === 'M' ? 'Masculin' : sheet.driver.gender === 'F' ? 'Féminin' : sheet.driver.gender ?? '—'}</strong></div>
-                  <div className="sheet-item"><span>Adresse</span><strong>{[sheet.driver.commune, sheet.driver.chefferie_sector, sheet.driver.neighborhood_group, sheet.driver.avenue_village].filter(Boolean).join(' · ') || '—'}</strong></div>
+                <div className="sheet-body">
+                  <div className="sheet-grid">
+                    <div className="sheet-item"><span>Nom complet</span><strong>{fullName}</strong></div>
+                    <div className="sheet-item"><span>Téléphone</span><strong>{sheet.driver.phone ?? '—'}</strong></div>
+                    <div className="sheet-item"><span>Date de naissance</span><strong>{sheet.driver.date_of_birth ?? '—'}</strong></div>
+                    <div className="sheet-item"><span>Lieu de naissance</span><strong>{sheet.driver.place_of_birth ?? '—'}</strong></div>
+                    <div className="sheet-item"><span>Sexe</span><strong>{sheet.driver.gender === 'M' ? 'Masculin' : sheet.driver.gender === 'F' ? 'Féminin' : sheet.driver.gender ?? '—'}</strong></div>
+                    <div className="sheet-item"><span>Adresse</span><strong>{[sheet.driver.commune, sheet.driver.chefferie_sector, sheet.driver.neighborhood_group, sheet.driver.avenue_village].filter(Boolean).join(' · ') || '—'}</strong></div>
+                  </div>
+                </div>
+                <div className="sheet-photo-col">
+                  {sheet.driver.photo ? (
+                    <img className="sheet-photo" src={sheet.driver.photo} alt={fullName} />
+                  ) : (
+                    <div className="avatar-placeholder">{sheet.driver.first_name[0]}{sheet.driver.last_name[0]}</div>
+                  )}
                 </div>
               </div>
             </section>
 
             <section className="sheet-section">
               <h3 className="sheet-section-title">ENGIN</h3>
-              <div className="sheet-grid">
-                <div className="sheet-item"><span>Plaque</span><strong className="mono">{sheet.vehicle.registration_number}</strong></div>
-                <div className="sheet-item"><span>Type</span><strong>{sheet.vehicle.type === 'MOTO' ? 'Motocycle' : 'Tricycle'}</strong></div>
-                <div className="sheet-item"><span>Marque</span><strong>{sheet.vehicle.brand ?? '—'}</strong></div>
-                <div className="sheet-item"><span>Couleur</span><strong>{sheet.vehicle.color ?? '—'}</strong></div>
-                <div className="sheet-item"><span>Numéro de châssis</span><strong className="mono">{sheet.vehicle.chassis_number ?? '—'}</strong></div>
-                <div className="sheet-item"><span>Numéro moteur</span><strong className="mono">{sheet.vehicle.engine_number ?? '—'}</strong></div>
-                <div className="sheet-item"><span>Usage</span><strong>{sheet.vehicle.usage === 'TAXI_TRANSPORT_PUBLIC' ? 'Taxi / Transport public' : sheet.vehicle.usage === 'PERSONNEL' ? 'Personnel' : 'Autre'}</strong></div>
+              <div className="sheet-header-row">
+                <div className="sheet-body">
+                  <div className="sheet-grid">
+                    <div className="sheet-item"><span>Plaque</span><strong className="mono">{sheet.vehicle.registration_number}</strong></div>
+                    <div className="sheet-item"><span>Type</span><strong>{sheet.vehicle.type === 'MOTO' ? 'Motocycle' : 'Tricycle'}</strong></div>
+                    <div className="sheet-item"><span>Marque</span><strong>{sheet.vehicle.brand ?? '—'}</strong></div>
+                    <div className="sheet-item"><span>Couleur</span><strong>{sheet.vehicle.color ?? '—'}</strong></div>
+                    <div className="sheet-item"><span>Numéro de châssis</span><strong className="mono">{sheet.vehicle.chassis_number ?? '—'}</strong></div>
+                    <div className="sheet-item"><span>Numéro moteur</span><strong className="mono">{sheet.vehicle.engine_number ?? '—'}</strong></div>
+                    <div className="sheet-item"><span>Usage</span><strong>{sheet.vehicle.usage === 'TAXI_TRANSPORT_PUBLIC' ? 'Taxi / Transport public' : sheet.vehicle.usage === 'PERSONNEL' ? 'Personnel' : 'Autre'}</strong></div>
+                  </div>
+                </div>
+                <div className="sheet-photo-col">
+                  <div className="sheet-thumb"><QrCode size={22} /></div>
+                </div>
               </div>
             </section>
 
             <section className="sheet-section">
               <h3 className="sheet-section-title">PROPRIÉTAIRE</h3>
               <div className="sheet-header-row">
-                {sheet.owner.photo ? (
-                  <img className="sheet-photo" src={sheet.owner.photo} alt={fullOwnerName} />
-                ) : (
-                  <div className="avatar-placeholder">{sheet.owner.first_name[0]}{sheet.owner.last_name[0]}</div>
-                )}
-                <div className="sheet-grid">
-                  <div className="sheet-item"><span>Nom complet</span><strong>{fullOwnerName}</strong></div>
-                  <div className="sheet-item"><span>Téléphone</span><strong>{sheet.owner.phone ?? '—'}</strong></div>
-                  <div className="sheet-item"><span>Adresse</span><strong>{[sheet.owner.commune, sheet.owner.chefferie_sector, sheet.owner.neighborhood_group, sheet.owner.avenue_village].filter(Boolean).join(' · ') || '—'}</strong></div>
+                <div className="sheet-body">
+                  <div className="sheet-grid">
+                    <div className="sheet-item"><span>Nom complet</span><strong>{fullOwnerName}</strong></div>
+                    <div className="sheet-item"><span>Téléphone</span><strong>{sheet.owner.phone ?? '—'}</strong></div>
+                    <div className="sheet-item"><span>Adresse</span><strong>{[sheet.owner.commune, sheet.owner.chefferie_sector, sheet.owner.neighborhood_group, sheet.owner.avenue_village].filter(Boolean).join(' · ') || '—'}</strong></div>
+                  </div>
+                </div>
+                <div className="sheet-photo-col">
+                  {sheet.owner.photo ? (
+                    <img className="sheet-photo" src={sheet.owner.photo} alt={fullOwnerName} />
+                  ) : (
+                    <div className="avatar-placeholder">{sheet.owner.first_name[0]}{sheet.owner.last_name[0]}</div>
+                  )}
                 </div>
               </div>
             </section>
 
             <section className="sheet-section">
               <h3 className="sheet-section-title">INFORMATIONS ADMINISTRATIVES</h3>
-              <div className="sheet-grid">
-                <div className="sheet-item"><span>Date d'enregistrement</span><strong>{sheet.administrative.issue_date ?? '—'}</strong></div>
-                <div className="sheet-item"><span>Lieu</span><strong>{sheet.administrative.issue_location ?? '—'}</strong></div>
-                <div className="sheet-item"><span>Émis par</span><strong>{sheet.administrative.issued_by || '—'}</strong></div>
-                <div className="sheet-item"><span>Statut</span><strong>{sheet.administrative.status}</strong></div>
+              <div className="sheet-header-row">
+                <div className="sheet-body">
+                  <div className="sheet-grid">
+                    <div className="sheet-item"><span>Date d'enregistrement</span><strong>{sheet.administrative.issue_date ?? '—'}</strong></div>
+                    <div className="sheet-item"><span>Lieu</span><strong>{sheet.administrative.issue_location ?? '—'}</strong></div>
+                    <div className="sheet-item"><span>Émis par</span><strong>{sheet.administrative.issued_by || '—'}</strong></div>
+                    <div className="sheet-item"><span>Statut</span><strong>{sheet.administrative.status}</strong></div>
+                  </div>
+                </div>
+                <div className="sheet-photo-col">
+                  <div className="sheet-thumb"><ShieldCheck size={22} /></div>
+                </div>
               </div>
             </section>
 
