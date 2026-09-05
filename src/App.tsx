@@ -28,7 +28,7 @@ import {
   X,
 } from "lucide-react";
 import "./App.css";
-import { authMe as apiAuthMe, createIdentification, createUser as apiCreateUser, getChart as apiGetChart, getStats as apiGetStats, listRiders as apiListRiders, listUsers as apiListUsers, login as apiLogin, logout as apiLogout, verifyIdentification as apiVerifyIdentification, type ApiUser, type CreateIdentificationInput, type CreateIdentificationResponse, type IdentificationSheetPayload } from "./api";
+import { authMe as apiAuthMe, createIdentification, createUser as apiCreateUser, deleteRider as apiDeleteRider, getChart as apiGetChart, getStats as apiGetStats, listRiders as apiListRiders, listUsers as apiListUsers, login as apiLogin, logout as apiLogout, patchRiderStatus as apiPatchRiderStatus, verifyIdentification as apiVerifyIdentification, type ApiUser, type CreateIdentificationInput, type CreateIdentificationResponse, type IdentificationSheetPayload } from "./api";
 
 type Rider = {
   id: string;
@@ -84,7 +84,11 @@ function App() {
   const publicCode = window.location.pathname.match(/^\/verify\/([^/]+)\/?$/)?.[1];
   useEffect(() => {
     if (!isAuthenticated) return;
-    apiListRiders().then((items) => setRiders(items.map((item) => ({ id: item.id, name: `${item.first_name} ${item.last_name}`, initials: `${item.first_name[0]}${item.last_name[0]}`, type: item.driver_type === "chauffeur_taxi" ? "Taxi" : item.driver_type === "chauffeur_taxi_bus" ? "Taxi-bus" : "Motard", idNumber: item.identification_number, plate: item.plate_number ?? "À attribuer", zone: item.activity_zone ?? "Non renseignée", status: item.status === "suspendu" ? "Suspendu" : item.status === "expire" ? "Expiré" : item.status === "desactive" ? "Désactivé" : "Actif", joined: new Date(item.created_at).toLocaleDateString("fr-FR"), color: "#9fb8ad", photoUrl: item.photo_url })))).catch(() => undefined);
+    apiListRiders().then((items) => setRiders(items.map((item) => {
+      const rawStatus = String(item.status ?? '').toLowerCase();
+      const status = rawStatus === 'suspendu' ? 'Suspendu' : rawStatus === 'expire' ? 'Expiré' : rawStatus === 'desactive' || rawStatus === 'archive' ? 'Désactivé' : 'Actif';
+      return { id: item.id, name: `${item.first_name} ${item.last_name}`, initials: `${item.first_name[0]}${item.last_name[0]}`, type: item.driver_type === "chauffeur_taxi" ? "Taxi" : item.driver_type === "chauffeur_taxi_bus" ? "Taxi-bus" : "Motard", idNumber: item.identification_number, plate: item.plate_number ?? "À attribuer", zone: item.activity_zone ?? "Non renseignée", status, joined: new Date(item.created_at).toLocaleDateString("fr-FR"), color: "#9fb8ad", photoUrl: item.photo_url };
+    }))).catch(() => undefined);
   }, [isAuthenticated]);
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -267,7 +271,7 @@ function App() {
             />
           )}
           {page === "riders" && (
-            <>{scannedRider && !page.includes('verify') && <div className="verify-result" style={{ marginBottom: 18 }}><strong>{scannedRider.driver.first_name} {scannedRider.driver.last_name}</strong><span className="mono">{scannedRider.identification_number}</span><span>{scannedRider.administrative.status}</span></div>}{scanError && <p className="login-error" style={{ marginBottom: 18 }}>{scanError}</p>}<Riders riders={filteredRiders} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} onAdd={() => setPage("add")} onOpenQrScanner={() => setQrScannerOpen(true)} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} onStatusChange={async (id, status) => { setRiders(riders.map((r) => (r.id === id ? { ...r, status: status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "expire" ? "Expiré" : "Désactivé" } : r))); setOpenMenuId(null); }} onDelete={async (id) => { setRiders(riders.filter((r) => r.id !== id)); setOpenMenuId(null); }} /></>
+            <>{scannedRider && !page.includes('verify') && <div className="verify-result" style={{ marginBottom: 18 }}><strong>{scannedRider.driver.first_name} {scannedRider.driver.last_name}</strong><span className="mono">{scannedRider.identification_number}</span><span>{scannedRider.administrative.status}</span></div>}{scanError && <p className="login-error" style={{ marginBottom: 18 }}>{scanError}</p>}<Riders riders={filteredRiders} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} onAdd={() => setPage("add")} onOpenQrScanner={() => setQrScannerOpen(true)} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} onStatusChange={async (id, status) => { const backendStatus = status === 'actif' ? 'ACTIF' : status === 'suspendu' ? 'SUSPENDU' : status === 'expire' ? 'EXPIRE' : 'ARCHIVE'; await apiPatchRiderStatus(id, backendStatus); setRiders(riders.map((r) => (r.id === id ? { ...r, status: status === 'actif' ? 'Actif' : status === 'suspendu' ? 'Suspendu' : status === 'expire' ? 'Expiré' : 'Désactivé' } : r))); setOpenMenuId(null); }} onDelete={async (id) => { await apiDeleteRider(id); setRiders(riders.filter((r) => r.id !== id)); setOpenMenuId(null); }} /></>
           )}
           {page === "add" && (
             <NewIdentificationSheet
